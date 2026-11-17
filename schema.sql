@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS blogs (
+  slug TEXT PRIMARY KEY,
+  document TEXT NOT NULL
+);

@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "funding-atlas",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2025-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": ".output/public", "binding": "ASSETS" },
+  "d1_databases": [
+    { "binding": "BLOG_DB", "database_name": "funding-atlas", "database_id": "REPLACE_WITH_D1_DATABASE_ID" }
+  ],
+  "ai": { "binding": "AI" },
+  "ratelimits": [
+    { "name": "GENERATE_LIMIT", "namespace_id": "1001", "simple": { "limit": 3, "period": 60 } }
+  ]
+}
