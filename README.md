@@ -2,6 +2,8 @@
 
 Funding Atlas turns a company fundraising CSV into a shareable, server-rendered Nuxt article. The featured report uses the 100-company UK seed-stage fintech dataset supplied for the Beauhurst assessment.
 
+[Live application](https://funding-atlas.funding-atlas.workers.dev/) · [Fintech ranking](https://funding-atlas.funding-atlas.workers.dev/blog/uk-fintech-funding)
+
 ## Run locally
 
 Use Node.js 22.18+ (22.x) or 24.11+ and npm.

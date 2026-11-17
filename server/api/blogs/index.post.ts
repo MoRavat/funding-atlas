@@ -35,7 +35,8 @@ export default defineEventHandler(async event => {
   let copy
   try {
     copy = await generateCopy({ ai: apiKey ? undefined : env?.AI, apiKey, model: env?.NUXT_GEMINI_MODEL || geminiModel, topic, companies, stats })
-  } catch {
+  } catch (error) {
+    console.warn('Report copy generation failed', error instanceof Error ? error.name : 'Unknown error')
     throw createError({ statusCode: 502, statusMessage: 'AI generation is unavailable. Please try again shortly.' })
   }
 
