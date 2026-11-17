@@ -1,12 +1,29 @@
 # Funding Atlas
 
-Funding Atlas turns a company fundraising CSV into a shareable, server-rendered Nuxt article. The featured report uses the 100-company UK seed-stage fintech dataset supplied for the Beauhurst assessment.
+Funding Atlas takes a company fundraising CSV and turns it into a report. The example in the app ranks the 100 UK seed-stage fintech companies in the Beauhurst dataset.
 
-[Live application](https://funding-atlas.funding-atlas.workers.dev/) · [Fintech ranking](https://funding-atlas.funding-atlas.workers.dev/blog/uk-fintech-funding)
+[Try the live app](https://funding-atlas.funding-atlas.workers.dev/) · [View the fintech ranking](https://funding-atlas.funding-atlas.workers.dev/blog/uk-fintech-funding)
+
+## Try an upload
+
+1. Open **Generate a report** and download the example healthtech CSV.
+2. Enter **UK healthtech** as the topic, select the CSV and click **Generate report**.
+3. The new report should show seven companies, with Aster Care Technologies first and £42,700,000 raised in total. Refresh the page to check the report was saved.
+
+You can use your own CSV too. Include `Company` and `Total Raised` as column headers. `Company Name` and `Total Funding (GBP)` also work. `Region` and `Stage` are optional. Use GBP amounts, put values with commas in quotes, and keep the file under 512 KB with up to 500 company rows. The companies in the healthtech example are fictional.
+
+## How it works
+
+- [The upload handler](server/api/blogs/index.post.ts) receives the topic and CSV. [The parser](server/utils/dataset.mjs) uses csv-parse to read the rows, checks the funding values, sorts the companies and works out the totals and median.
+- [The AI step](server/utils/generate-copy.mjs) gets a short set of facts and writes the intro, a heading and a short analysis. The numbers in the ranking come from the CSV.
+- [The storage code](server/utils/blog-store.ts) saves each generated report under its own link. The live app uses Cloudflare D1. A local run saves reports in `.data/blogs`.
+- [The Nuxt page](app/pages/blog/%5Bslug%5D.vue) displays the fintech report and generated reports using the same layout. The full table is in the HTML on the first request.
+
+The fintech page is linked from the home page and listed in the sitemap. It has a page title, meta description, canonical URL and article structured data. Generated reports also get their own metadata. I set them to `noindex` so they can be shared by link and checked before appearing in search.
 
 ## Run locally
 
-Use Node.js 22.18+ (22.x) or 24.11+ and npm.
+Use Node.js 22.18+ on the 22.x line or Node.js 24.11+, with npm.
 
 ```sh
 npm ci
@@ -15,52 +32,15 @@ cp .env.example .env
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). The fintech ranking works immediately. To generate a new report locally, set `NUXT_GEMINI_API_KEY` in `.env` using a free-tier Gemini Developer API key, then restart the app. `NUXT_GEMINI_MODEL` can override the default model, `gemini-2.5-flash-lite`.
+Open [localhost:3000](http://localhost:3000). The fintech ranking works straight away. To generate reports locally, add a Gemini API key as `NUXT_GEMINI_API_KEY` in `.env` and restart the app. The live site uses Cloudflare Workers AI, so you can try an upload there without setting up a key. For a local production build, use `npm run build` followed by `npm run preview`.
 
-For a production-style local build, run `npm run build` and `npm run preview`. Generated reports persist in the ignored `.data/blogs` directory. Launch from the project directory so the build resolves that path consistently.
+## Deploy a copy
 
-## Generate a report
-
-1. Open **Generate a report** and download the example CSV or choose your own.
-2. Enter an industry label such as **UK healthtech**.
-3. Select the CSV and click **Generate report**. The app opens the new report once the copy and dataset are saved.
-4. Refresh the page or open the same URL in a fresh tab to check persistence.
-
-Use a comma-separated UTF-8 file with a header and 1–500 company rows, up to 512 KB. Include `Company` and `Total Raised` columns. `Company Name` and `Total Funding (GBP)` are accepted aliases. Supply non-negative GBP amounts with up to two decimal places. Quote fields containing commas. `Region` and `Stage` are optional. Other columns are ignored. The example healthtech companies are fictional.
-
-## Architecture
-
-| File | Responsibility |
-| --- | --- |
-| `server/utils/dataset.mjs` | Parses quoted CSV with csv-parse, checks columns and amounts, sorts by funding, and computes statistics. |
-| `server/api/blogs/index.post.ts` | Validates the upload, calls the model, saves a document with a unique slug, and returns its route. |
-| `server/utils/generate-copy.mjs` | Sends a compact set of computed facts to Workers AI or Gemini and validates the three returned text fields. |
-| `server/utils/blog-store.ts` | Stores generated documents in Cloudflare D1 in production or Nitro file storage locally. |
-| `server/api/blogs/[slug].get.ts` | Loads the bundled fintech report or a stored report, and returns a 404 for unknown slugs. |
-| `app/pages/blog/[slug].vue` | Server-renders both kinds of report, including the complete table, metadata and Article structured data. |
-
-**Dataset → computed ranking and statistics → model-written prose → persisted report → Nuxt HTML.** The title, meta description, figures, and ranking table come from the industry topic and validated rows. The LLM writes the introduction, an analytical heading and a short interpretation. It receives summary statistics and a few leaders, with no raw CSV or descriptions. Vue escapes all content when inserting it into the page.
-
-The public fintech article is linked from the home page and listed in the sitemap. It has an SEO title, meta description, canonical URL, Open Graph tags and Article JSON-LD. The generator and created reports use `noindex, follow` so shared drafts can be viewed and reviewed before search publication. A noindex directive provides search guidance. A generated link remains publicly readable.
-
-## Deploy on Cloudflare Workers
-
-Cloudflare Workers serves the Nuxt app, D1 persists generated reports and Workers AI runs the Llama model through a server binding. The interviewer needs only the site URL. Use Cloudflare's Free plan and keep the demo within the free quotas.
-
-1. Install dependencies with `npm ci` and authenticate with `npx wrangler login`.
-2. Run `npx wrangler d1 create funding-atlas`. Copy its database ID into the `BLOG_DB` entry in `wrangler.jsonc`. Choose a distinct Worker name if your account already uses `funding-atlas`.
+1. Run `npx wrangler login` and sign in to a Cloudflare account on the Free plan.
+2. Run `npx wrangler d1 create funding-atlas` and put the database ID under `BLOG_DB` in `wrangler.jsonc`.
 3. Run `npx wrangler d1 execute funding-atlas --remote --file=schema.sql`.
-4. Run `npm run deploy`. The printed `workers.dev` URL is the demo URL. For a custom canonical host, set `NUXT_PUBLIC_SITE_URL` under `vars` in `wrangler.jsonc` and redeploy. Otherwise the app uses the request origin.
-5. Open the live URL in a private window. Load the fintech article, generate a report from the example CSV, and reopen that report directly. Check `/robots.txt` and `/sitemap.xml`.
+4. Run `npm run deploy` and open the URL Wrangler prints. Try an upload and reopen the generated report.
 
-Workers AI is the cloud default. To use Gemini on the Worker instead, optionally run `npx wrangler secret put NUXT_GEMINI_API_KEY`. Keep secrets out of source control. The deployed upload endpoint has an IP-based rate limit. Check your provider quotas before the interview.
+## What I’d improve
 
-[Cloudflare Nuxt deployment](https://developers.cloudflare.com/workers/framework-guides/web-apps/more-web-frameworks/nuxt/) · [Workers AI JSON mode](https://developers.cloudflare.com/workers-ai/features/json-mode/) · [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) · [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing)
-
-## Limitations
-
-- Each report is a snapshot. The fintech source gives no collection date, so the copy avoids recency and market-wide claims.
-- Uploads support GBP and common column aliases. An unfamiliar schema may need header normalization or a future field-mapping step.
-- Model output can still make an unsupported claim. Output validation checks structure and length. A reviewer should verify the prose before indexing a report.
-- The demo handles one generation synchronously per request. Provider outages or rate limits surface as a retriable error. Only a successful generation is saved.
-- This demo accepts public data and creates link-accessible drafts. An editorial product would add authentication, review, deletion and a publication state.
+I’d add a review step so someone can check the source and the AI copy before publishing. The app checks the structure of the AI response. The copy still needs a factual read-through. I’d also add a way to map columns for CSVs with different headers.
